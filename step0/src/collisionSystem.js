@@ -1,63 +1,65 @@
 import * as cpn from "./components.js";
 
-function collision(components, obj1, obj2) {
-    if (components.PositionComponent[obj1].x + components.CollisionBoxComponent[obj1].width > components.PositionComponent[obj2].x &&
-        components.PositionComponent[obj1].x - components.CollisionBoxComponent[obj1].width < components.PositionComponent[obj2].x + components.CollisionBoxComponent[obj2].width &&
-        components.PositionComponent[obj1].y + components.CollisionBoxComponent[obj1].height > components.PositionComponent[obj2].y &&
-        components.PositionComponent[obj1].y - components.CollisionBoxComponent[obj1].width < components.PositionComponent[obj2].y + components.CollisionBoxComponent[obj2].height) {
-        return true;
-    }
-    return false;
-}
+function getOverlap(boxA, boxB) {
+    let halfWidthA = boxA.width / 2;
+    let halfHeightA = boxA.height / 2;
+    let halfWidthB = boxB.width / 2;
+    let halfHeightB = boxB.height / 2;
 
-function detectCollisionAxis(boxA, boxB) {
-    let overlapX = Math.min(boxA.x + boxA.width - boxB.x, boxB.x + boxB.width - boxA.x);
-    let overlapY = Math.min(boxA.y + boxA.height - boxB.y, boxB.y + boxB.height - boxA.y);
+    let centerA = { x: boxA.x + halfWidthA, y: boxA.y + halfHeightA };
+    let centerB = { x: boxB.x + halfWidthB, y: boxB.y + halfHeightB };
 
-    if (overlapX < overlapY) {
-        return 'X';
-    } else {
-        return 'Y';
-    }
+    let diffX = centerA.x - centerB.x;
+    let diffY = centerA.y - centerB.y;
+
+    let minDistX = halfWidthA + halfWidthB;
+    let minDistY = halfHeightA + halfHeightB;
+
+    let depthX = diffX > 0 ? minDistX - diffX : -minDistX - diffX;
+    let depthY = diffY > 0 ? minDistY - diffY : -minDistY - diffY;
+
+    return { x: depthX, y: depthY };
 }
 
 const collisionSystem = (entities, components, ecs) => {
     for (const ball of Object.getOwnPropertySymbols(components[cpn.BallTag.name])) {
         for (const obj of Object.getOwnPropertySymbols(components[cpn.CollisionTag.name])) {
-            components.CollisionBoxComponent[obj].hit = false;
 
-            if (ball != obj) {
-                if (collision(components, ball, obj)) {
-                    components.CollisionBoxComponent[obj].hit = true;
+            if (ball === obj) continue;
 
-                    let ballobj = { x: components.PositionComponent[ball].x, y: components.PositionComponent[ball].y, width: components.CollisionBoxComponent[ball].width, height: components.CollisionBoxComponent[ball].height }
-                    let otherobj = { x: components.PositionComponent[obj].x, y: components.PositionComponent[obj].y, width: components.CollisionBoxComponent[obj].width, height: components.CollisionBoxComponent[obj].height }
-                    let axe = detectCollisionAxis(ballobj, otherobj)
+            if (components.PositionComponent[ball].x < components.PositionComponent[obj].x + components.CollisionBoxComponent[obj].width &&
+                components.PositionComponent[ball].x + components.CollisionBoxComponent[ball].width > components.PositionComponent[obj].x &&
+                components.PositionComponent[ball].y < components.PositionComponent[obj].y + components.CollisionBoxComponent[obj].height &&
+                components.PositionComponent[ball].y + components.CollisionBoxComponent[ball].height > components.PositionComponent[obj].y) {
 
-                    if (axe == 'X') {
-                        if (components.VelocityComponent[ball].dx > 0) {
-                            components.PositionComponent[ball].x = components.PositionComponent[obj].x - components.CollisionBoxComponent[ball].width - 0.1;
-                        } else {
-                            components.PositionComponent[ball].x = components.PositionComponent[obj].x + components.CollisionBoxComponent[obj].width + 0.1;
-                        }
-                        // --------------------------------------------------------------
-                        components.VelocityComponent[ball].dx = -components.VelocityComponent[ball].dx;
-                    }
-                    else {
-                        if (components.VelocityComponent[ball].dy > 0) {
-                            components.PositionComponent[ball].y = components.PositionComponent[obj].y - components.CollisionBoxComponent[ball].height - 0.1;
-                        } else {
-                            components.PositionComponent[ball].y = components.PositionComponent[obj].y + components.CollisionBoxComponent[obj].height + 0.1;
-                        }
-                        // --------------------------------------------------------------
-                        components.VelocityComponent[ball].dy = -components.VelocityComponent[ball].dy;
-                    }
+                components.CollisionBoxComponent[obj].hit = true;
 
-                    if (components.BriqueTag[obj]) {
-                        ecs.removeEntity(obj);
-                        ecs.eventEmitter.emit('hit');
-                    }
+                let boxBall = {
+                    x: components.PositionComponent[ball].x,
+                    y: components.PositionComponent[ball].y,
+                    width: components.CollisionBoxComponent[ball].width,
+                    height: components.CollisionBoxComponent[ball].height
+                };
+                let boxObj = {
+                    x: components.PositionComponent[obj].x,
+                    y: components.PositionComponent[obj].y,
+                    width: components.CollisionBoxComponent[obj].width,
+                    height: components.CollisionBoxComponent[obj].height
+                };
 
+                let overlap = getOverlap(boxBall, boxObj);
+
+                if (Math.abs(overlap.x) < Math.abs(overlap.y)) {
+                    components.PositionComponent[ball].x += overlap.x;
+                    components.VelocityComponent[ball].dx = -components.VelocityComponent[ball].dx;
+                } else {
+                    components.PositionComponent[ball].y += overlap.y;
+                    components.VelocityComponent[ball].dy = -components.VelocityComponent[ball].dy;
+                }
+
+                if (components.BriqueTag[obj]) {
+                    ecs.removeEntity(obj);
+                    ecs.eventEmitter.emit('hit');
                 }
             }
         }
