@@ -1,10 +1,11 @@
 import * as engine from "./engine.js";
 import * as entitites from "./entities.js";
 import * as cpn from "./components.js";
-
 function sceneSetup() {
-    const ball = entitites.Ball(175, 200, 10, 10, 0.2, 0.2);
+    const ball = entitites.Ball(175, 200, 10, 10, 0.15, 0.15);
+
     const raquette = entitites.Raquette(150, 400, 60, 10);
+
     let offsetx = 35;
     let offsety = 40;
     let deltax = 60;
